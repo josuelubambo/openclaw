@@ -1,0 +1,15 @@
+name: Build ZIP Manual
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Create Archive
+        run: zip -r openclaw-main.zip . -x "*.git*"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: openclaw-final-zip
+          path: openclaw-main.zip
