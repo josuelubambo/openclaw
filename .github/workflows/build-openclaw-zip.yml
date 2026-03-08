@@ -1,4 +1,4 @@
-name: Build OpenClaw Complet
+name: Build OpenClaw Turbo
 on:
   workflow_dispatch:
 
@@ -9,42 +9,15 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v4
 
-      - name: Use Node.js 22
-        uses: actions/setup-node@v4
-        with:
-          node-version: "22"
-          # On a supprimé la ligne "cache: npm" qui causait l'erreur
-
-      - name: Ensure corepack (pnpm) available
+      - name: Create Clean Zip
         run: |
-          corepack enable
-          corepack prepare pnpm@10.23.0 --activate || true
-
-      - name: Install dependencies
-        # On ajoute --no-frozen-lockfile pour qu'il ne râle pas si le lock est absent
-        run: pnpm install --no-frozen-lockfile
-
-      - name: Run UI build if present
-        run: |
-          if jq -e '.scripts["ui:build"]' package.json >/dev/null 2>&1; then
-            pnpm run ui:build
-          else
-            echo "ui:build not found"
-          fi
-
-      - name: Run TS build if present
-        run: |
-          if jq -e '.scripts.build' package.json >/dev/null 2>&1; then
-            pnpm run build || echo "build failed"
-          else
-            echo "build script not found"
-          fi
-
-      - name: Create zip artifact
-        run: zip -r openclaw-main.zip . -x "*.git*"
+          # On supprime les vieux ZIP s'ils existent
+          rm -f openclaw-main.zip
+          # On compresse tout sauf le dossier .git pour gagner de la place
+          zip -r openclaw-main.zip . -x "*.git*"
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: openclaw-final-package
+          name: openclaw-turbo-package
           path: openclaw-main.zip
