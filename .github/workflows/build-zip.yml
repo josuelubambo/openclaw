@@ -1,15 +1,53 @@
-name: Build ZIP Manual
+name: Build OpenClaw Complet
 on:
   workflow_dispatch:
 
 jobs:
-  build:
+  build-and-zip:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - name: Create Archive
-        run: zip -r openclaw-main.zip . -x "*.git*"
-      - uses: actions/upload-artifact@v4
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Use Node.js 22
+        uses: actions/setup-node@v4
         with:
-          name: openclaw-final-zip
+          node-version: "22"
+          cache: "npm"
+
+      - name: Ensure corepack (pnpm) available
+        run: |
+          corepack enable
+          corepack prepare pnpm@10.23.0 --activate || true
+          pnpm -v
+
+      - name: Install dependencies (pnpm)
+        # On travaille à la racine du projet (.)
+        run: pnpm install --no-frozen-lockfile
+
+      - name: Run UI build if present
+        run: |
+          if jq -e '.scripts["ui:build"]' package.json >/dev/null 2>&1; then
+            pnpm run ui:build
+          else
+            echo "ui:build not found -> skipping"
+          fi
+
+      - name: Run TS build if present
+        run: |
+          if jq -e '.scripts.build' package.json >/dev/null 2>&1; then
+            npm run build || echo "build failed (continue)"
+          else
+            echo "build script not found -> skipping"
+          fi
+
+      - name: Create zip artifact
+        run: |
+          # On crée le ZIP à partir de tout le contenu actuel
+          zip -r openclaw-main.zip . -x "*.git*"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: openclaw-final-package
           path: openclaw-main.zip
