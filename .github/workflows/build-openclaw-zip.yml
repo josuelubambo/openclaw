@@ -1,6 +1,6 @@
-# GitHub Actions workflow : build UI + TS on Linux and produce openclaw-main.zip artifact
+name: Build OpenClaw Complet
 on:
-  workflow_dispatch: {}
+  workflow_dispatch:
 
 jobs:
   build-and-zip:
@@ -13,63 +13,38 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "22"
-          cache: "npm"
+          # On a supprimé la ligne "cache: npm" qui causait l'erreur
 
       - name: Ensure corepack (pnpm) available
         run: |
           corepack enable
           corepack prepare pnpm@10.23.0 --activate || true
-          pnpm -v
 
-      - name: Install dependencies (pnpm)
-        working-directory: openclaw-main
-        run: |
-          pnpm install --no-frozen-lockfile
+      - name: Install dependencies
+        # On ajoute --no-frozen-lockfile pour qu'il ne râle pas si le lock est absent
+        run: pnpm install --no-frozen-lockfile
 
       - name: Run UI build if present
-        working-directory: openclaw-main
         run: |
           if jq -e '.scripts["ui:build"]' package.json >/dev/null 2>&1; then
-            echo "ui:build detected -> running pnpm run ui:build"
             pnpm run ui:build
           else
-            echo "ui:build not found -> skipping UI build"
+            echo "ui:build not found"
           fi
 
       - name: Run TS build if present
-        working-directory: openclaw-main
         run: |
           if jq -e '.scripts.build' package.json >/dev/null 2>&1; then
-            echo "build detected -> running npm run build"
-            npm run --prefix . run build || echo "npm run build failed (continue)"
+            pnpm run build || echo "build failed"
           else
-            echo "build script not found -> skipping TS build"
-          fi
-
-      - name: Ensure control-ui placeholder if missing (optional)
-        run: |
-          # If UI build produced no control-ui, create a minimal placeholder so HF won't complain
-          if [ ! -f openclaw-main/dist/control-ui/index.html ]; then
-            mkdir -p openclaw-main/dist/control-ui
-            cat > openclaw-main/dist/control-ui/index.html <<'HTML'
-            <!doctype html>
-            <html lang="fr">
-            <head><meta charset="utf-8"/><title>OpenClaw Control UI (placeholder)</title></head>
-            <body><h1>Control UI placeholder</h1><p>Replace with real UI build when available.</p></body>
-            </html>
-            HTML
-            echo "placeholder control-ui created"
-          else
-            echo "control-ui exists"
+            echo "build script not found"
           fi
 
       - name: Create zip artifact
-        run: |
-          rm -f openclaw-main.zip
-          zip -r openclaw-main.zip openclaw-main
+        run: zip -r openclaw-main.zip . -x "*.git*"
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: openclaw-main.zip
+          name: openclaw-final-package
           path: openclaw-main.zip
